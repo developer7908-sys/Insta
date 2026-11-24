@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d18">
+<title>Welcome | HemantaBarman</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:22px;background:radial-gradient(ellipse at 50% 0%,#12314b 0%,#080d18 58%);color:#f4f7ff;font:16px/1.5 Arial,sans-serif}
+main{width:min(100%,440px);padding:30px 24px;background:linear-gradient(155deg,#17263a,#101827 65%);border:1px solid #29445f;border-radius:26px;text-align:center;box-shadow:0 24px 70px #0008;position:relative;overflow:hidden}
+main:before{content:"";position:absolute;inset:0 15% auto;height:2px;background:linear-gradient(90deg,transparent,#45d7ff,transparent)}
+.kicker{font-size:12px;letter-spacing:3px;color:#79dcff;font-weight:700;margin:4px 0 18px}
+.avatar-wrap{width:150px;height:150px;padding:5px;border-radius:50%;margin:0 auto 20px;background:linear-gradient(135deg,#45d7ff,#6b6cff,#45d7ff);box-shadow:0 0 32px #25c8ff55}
+.avatar{width:100%;height:100%;object-fit:cover;object-position:center 35%;border-radius:50%;border:3px solid #101827;display:block}
+h1{font-size:29px;letter-spacing:1px;margin:0 0 12px;color:#fff}
+.welcome{color:#c1cee0;font-size:15px;margin:0 auto 22px;max-width:320px}
+.heart{color:#ff719b}
+.consent{display:flex;align-items:flex-start;gap:10px;text-align:left;margin:20px 0 14px;color:#b7c6da;font-size:13px;line-height:1.45}
+.consent input{margin-top:3px;accent-color:#45d7ff}
+button,.insta{width:100%;display:block;border:0;border-radius:12px;padding:15px 16px;background:linear-gradient(90deg,#35cfff,#6485ff);color:#07111e;font-weight:800;font-size:15px;text-decoration:none;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+#status{min-height:22px;margin-top:12px;color:#a9bad0;font-size:12px}
+.footer{margin-top:22px;color:#71859f;font-size:11px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">A LITTLE HELLO FROM ME</div>
+  <div class="avatar-wrap"><img class="avatar" src="./profile-photo.webp" alt="HemantaBarman profile photo"></div>
+  <h1>HemantaBarman</h1>
+  <p class="welcome">Hey! Welcome to my Instagram profile. Thanks for visiting! <span class="heart">❤️</span></p>
+  <label class="consent"><input id="consent" type="checkbox"> I agree to share basic anonymous link-click analytics (device type and visit time).</label>
+  <button id="continue" disabled>VISIT MY INSTAGRAM ↗</button>
+  <div id="status" role="status" aria-live="polite"></div>
+  <div class="footer">MADE WITH <span class="heart">♥</span> BY HEMANTABARMAN</div>
+</main>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { firebaseConfig, DESTINATION_URL } from "./firebase-config.js";
+
+const consent = document.getElementById("consent");
+const button = document.getElementById("continue");
+const status = document.getElementById("status");
+consent.addEventListener("change", () => button.disabled = !consent.checked);
+
+button.addEventListener("click", async () => {
+  if (!consent.checked) return;
+  button.disabled = true;
+  status.textContent = "Opening Instagram…";
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const device = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? "Mobile" : "Desktop";
+    await addDoc(collection(db, "visits"), {
+      device,
+      consent: true,
+      createdAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Analytics write failed:", error);
+  }
+  // Continue to Instagram even if analytics is temporarily unavailable.
+  window.location.href = DESTINATION_URL;
+});
+</script>
+</body>
+</html>

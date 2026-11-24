@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == "developer7908@gmail.com";
+    }
+
+    match /visits/{visitId} {
+      allow create: if request.resource.data.keys().hasAll(['device', 'consent', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['device', 'consent', 'createdAt'])
+        && request.resource.data.device in ['Mobile', 'Desktop']
+        && request.resource.data.consent == true
+        && request.resource.data.createdAt == request.time;
+
+      allow get, list: if isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Visitor Tracker — Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:22px;background:#080d18;color:#eef4ff;font:15px Arial,sans-serif}
+.wrap{max-width:850px;margin:auto}h1{color:#45d7ff}small,.muted{color:#9eafc8}
+.card{background:#141e30;border:1px solid #293b55;border-radius:15px;padding:18px;margin:14px 0}
+input{display:block;width:100%;padding:13px;margin:10px 0;border-radius:9px;border:1px solid #40536f;background:#0c1524;color:white}
+button{padding:12px 16px;border:0;border-radius:9px;background:#45d7ff;color:#06111c;font-weight:bold;cursor:pointer;margin:5px 5px 5px 0}
+button.secondary{background:#293b55;color:#fff}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stat{background:#0d1727;border:1px solid #293b55;border-radius:12px;padding:15px}.num{font-size:28px;color:#45d7ff;font-weight:bold;margin-top:8px}
+.row{padding:12px 0;border-top:1px solid #293b55;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#dashboard{display:none}.error{color:#ff9b9b;white-space:pre-wrap}
+@media(max-width:520px){.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>⚡ Visitor Tracker Admin</h1>
+<p class="muted">Sign in to view anonymous link-click analytics.</p>
+<section class="card" id="login">
+  <h2>Admin Login</h2>
+  <input id="email" type="email" placeholder="Admin email" autocomplete="username">
+  <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="loginBtn">Sign in</button>
+  <div id="loginError" class="error"></div>
+</section>
+<section id="dashboard">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2>Dashboard</h2><button class="secondary" id="logoutBtn">Sign out</button>
+    </div>
+    <p class="muted" id="account"></p>
+  </div>
+  <div class="stats">
+    <div class="stat"><small>Total clicks</small><div class="num" id="total">0</div></div>
+    <div class="stat"><small>Mobile</small><div class="num" id="mobile">0</div></div>
+    <div class="stat"><small>Desktop</small><div class="num" id="desktop">0</div></div>
+  </div>
+  <div class="card"><h2>Recent activity</h2><div id="activity" class="muted">Loading…</div></div>
+  <p class="muted">Only basic device category and timestamp are shown. No Instagram identity or profile-view data is available.</p>
+</section>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const loginPanel = document.getElementById("login");
+const dashboard = document.getElementById("dashboard");
+const errorBox = document.getElementById("loginError");
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  errorBox.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth,
+      document.getElementById("email").value.trim(),
+      document.getElementById("password").value);
+  } catch (e) {
+    errorBox.textContent = "Login failed: " + e.message;
+  }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, async user => {
+  loginPanel.style.display = user ? "none" : "block";
+  dashboard.style.display = user ? "block" : "none";
+  if (!user) return;
+  document.getElementById("account").textContent = "Signed in as " + user.email;
+  await loadVisits();
+});
+
+async function loadVisits() {
+  const activity = document.getElementById("activity");
+  activity.textContent = "Loading…";
+  try {
+    const q = query(collection(db, "visits"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    let mobile = 0, desktop = 0;
+    activity.replaceChildren();
+
+    if (snapshot.empty) {
+      activity.textContent = "No clicks recorded yet.";
+    } else {
+      snapshot.docs.slice(0, 100).forEach(docSnap => {
+        const v = docSnap.data();
+        if (v.device === "Mobile") mobile++;
+        if (v.device === "Desktop") desktop++;
+        const row = document.createElement("div");
+        row.className = "row";
+        const left = document.createElement("span");
+        left.textContent = v.device || "Unknown device";
+        const right = document.createElement("span");
+        const date = v.createdAt?.toDate ? v.createdAt.toDate().toLocaleString() : "Time pending";
+        right.textContent = date;
+        row.append(left, right);
+        activity.appendChild(row);
+      });
+    }
+    document.getElementById("total").textContent = snapshot.size;
+    document.getElementById("mobile").textContent = mobile;
+    document.getElementById("desktop").textContent = desktop;
+  } catch (e) {
+    activity.textContent = "Could not load analytics: " + e.message +
+      "\\nCheck that Firestore rules allow the admin email and that Firestore is enabled.";
+  }
+}
+</script>
+</body>
+</html>
